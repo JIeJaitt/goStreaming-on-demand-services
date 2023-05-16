@@ -17,6 +17,9 @@ func init() {
 	// 在项目中, 不要轻易使用 panic
 	// panic 会中断整个项目, 并且抛出这个 panic
 	// 只有在确实无法正常完成业务逻辑的时候, 才使用 panic
+	//
+	// openConn 的时候实际上并不会连接数据库
+	// 只有在 Prepare 的时候才会真正连接数据库
 	dbConn, err := sql.Open("mysql", "root:12345678@tcp(localhost:3306)/stmsrv?charset=utf8")
 	if err != nil {
 		panic(err.Error())
