@@ -13,6 +13,8 @@ func RegisterHandlers() *httprouter.Router {
 }
 
 func main() {
+	// 注册路由
 	r := RegisterHandlers()
+	// 启动服务
 	http.ListenAndServe(":8080", r)
 }
