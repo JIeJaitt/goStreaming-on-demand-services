@@ -1,6 +1,7 @@
 package dbops
 
 import (
+	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 )
@@ -10,11 +11,28 @@ func AddUserCredential(loginName string, pwd string) error {
 	if err != nil {
 		return err
 	}
-	stmtIns.Exec(loginName, pwd)
+
+	_, err = stmtIns.Exec(loginName, pwd)
+	if err != nil {
+		// 如果我们在这里直接返回 err
+		// 那么后面的 stmtIns.Close() 语句就不会执行
+		// 所以后面还是需要用 defer 来执行Close
+		return err
+	}
+
 	// defer 是在栈退出的时候才会调用
 	// 所以 defer 对性能有些许损耗
 	// 尽量少在对性能要求严格的项目中使用 defer
-	stmtIns.Close()
+	//
+	// 在整个函数中，跳出的机会非常多
+	// 如果不使用 defer，就没法确保在函数退出时关闭 stmtIns
+	// 除非在每次跳出的时候都写一遍 stmtIns.Close()
+	defer func(stmtIns *sql.Stmt) {
+		err := stmtIns.Close()
+		if err != nil {
+			return
+		}
+	}(stmtIns)
 	return nil
 }
 
@@ -29,7 +47,18 @@ func GetUserCredential(loginName string) (string, error) {
 
 	var pwd string
 	stmtOut.QueryRow(loginName).Scan(&pwd)
-	stmtOut.Close()
+	// ErrNoRows 实际上并不是一个真正的处理错误
+	// 而是没有结果
+	// 而这里如果不处理程序会把 NoRows 按照错误来返回
+	if err != nil && err != sql.ErrNoRows {
+		return "", err
+	}
+	defer func(stmtOut *sql.Stmt) {
+		err := stmtOut.Close()
+		if err != nil {
+			return
+		}
+	}(stmtOut)
 	return pwd, nil
 }
 
@@ -40,7 +69,15 @@ func DeleteUserCredential(loginName string, pwd string) error {
 		return err
 	}
 
-	stmtDel.Exec(loginName, pwd)
-	stmtDel.Close()
+	_, err = stmtDel.Exec(loginName, pwd)
+	if err != nil {
+		return err
+	}
+	defer func(stmtDel *sql.Stmt) {
+		err := stmtDel.Close()
+		if err != nil {
+			return
+		}
+	}(stmtDel)
 	return nil
 }
