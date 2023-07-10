@@ -3,9 +3,9 @@ package dbops
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"goStreaming-on-demand-services/api/defs"
+	"goStreaming-on-demand-services/api/utils"
 	"log"
-	"stmsrv/api/defs"
-	"stmsrv/api/utils"
 	"time"
 )
 
@@ -17,25 +17,10 @@ func AddUserCredential(loginName string, pwd string) error {
 
 	_, err = stmtIns.Exec(loginName, pwd)
 	if err != nil {
-		// 如果我们在这里直接返回 err
-		// 那么后面的 stmtIns.Close() 语句就不会执行
-		// 所以后面还是需要用 defer 来执行Close
 		return err
 	}
 
-	// defer 是在栈退出的时候才会调用
-	// 所以 defer 对性能有些许损耗
-	// 尽量少在对性能要求严格的项目中使用 defer
-	//
-	// 在整个函数中，跳出的机会非常多
-	// 如果不使用 defer，就没法确保在函数退出时关闭 stmtIns
-	// 除非在每次跳出的时候都写一遍 stmtIns.Close()
-	defer func(stmtIns *sql.Stmt) {
-		err := stmtIns.Close()
-		if err != nil {
-			return
-		}
-	}(stmtIns)
+	defer stmtIns.Close()
 	return nil
 }
 
@@ -43,30 +28,22 @@ func GetUserCredential(loginName string) (string, error) {
 	stmtOut, err := dbConn.Prepare("SELECT pwd FROM users WHERE login_name = ?")
 	if err != nil {
 		log.Printf("%s", err)
-		// string 是没有 nil 的, 所以这里返回一个空字符串
-		// nil 大多数时候是出现在 pointer, interface, map, slice, channel, function 这些类型上
 		return "", err
 	}
 
 	var pwd string
 	err = stmtOut.QueryRow(loginName).Scan(&pwd)
-	// ErrNoRows 实际上并不是一个真正的处理错误
-	// 而是没有结果
-	// 而这里如果不处理程序会把 NoRows 按照错误来返回
 	if err != nil && err != sql.ErrNoRows {
 		return "", err
 	}
-	defer func(stmtOut *sql.Stmt) {
-		err := stmtOut.Close()
-		if err != nil {
-			return
-		}
-	}(stmtOut)
+
+	defer stmtOut.Close()
+
 	return pwd, nil
 }
 
 func DeleteUserCredential(loginName string, pwd string) error {
-	stmtDel, err := dbConn.Prepare("DELETE FROM users WHERE login_name = ? AND pwd = ?")
+	stmtDel, err := dbConn.Prepare("DELETE FROm users WHERE login_name=? AND pwd=?")
 	if err != nil {
 		log.Printf("DeleteUser error: %s", err)
 		return err
@@ -76,12 +53,8 @@ func DeleteUserCredential(loginName string, pwd string) error {
 	if err != nil {
 		return err
 	}
-	defer func(stmtDel *sql.Stmt) {
-		err := stmtDel.Close()
-		if err != nil {
-			return
-		}
-	}(stmtDel)
+
+	defer stmtDel.Close()
 	return nil
 }
 
@@ -91,12 +64,9 @@ func AddNewVideo(aid int, name string) (*defs.VideoInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	// create time -> db ->
-	// 真正的写库时间和生成视频的时间是有区别的
 
 	t := time.Now()
 	ctime := t.Format("Jan 02 2006, 15:04:05")
-
 	stmtIns, err := dbConn.Prepare(`INSERT INTO video_info 
 		(id, author_id, name, display_ctime) VALUES(?, ?, ?, ?)`)
 	if err != nil {
@@ -108,56 +78,37 @@ func AddNewVideo(aid int, name string) (*defs.VideoInfo, error) {
 		return nil, err
 	}
 
-	defer func(stmtIns *sql.Stmt) {
-		err := stmtIns.Close()
-		if err != nil {
-			return
-		}
-	}(stmtIns)
-
 	res := &defs.VideoInfo{Id: vid, AuthorId: aid, Name: name, DisplayCtime: ctime}
+
+	defer stmtIns.Close()
 	return res, nil
 }
 
-type UserError struct {
-	Message string
-}
-
-func (e *UserError) Error() string {
-	return e.Message
-}
-
 func GetVideoInfo(vid string) (*defs.VideoInfo, error) {
-	stmtOut, err := dbConn.Prepare(`SELECT author_id, name, display_ctime FROM video_info 
-		WHERE id = ?`)
-	if err != nil {
-		return nil, err
-	}
+	stmtOut, err := dbConn.Prepare("SELECT author_id, name, display_ctime FROM video_info WHERE id=?")
 
 	var aid int
 	var dct string
 	var name string
+
 	err = stmtOut.QueryRow(vid).Scan(&aid, &name, &dct)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
 
 	if err == sql.ErrNoRows {
-		return nil, &UserError{"User not found"}
+		return nil, nil
 	}
-	if err != nil {
-		return nil, &UserError{"Error retrieving user"}
-	}
-	defer func(stmtOut *sql.Stmt) {
-		err := stmtOut.Close()
-		if err != nil {
-			return
-		}
-	}(stmtOut)
+
+	defer stmtOut.Close()
 
 	res := &defs.VideoInfo{Id: vid, AuthorId: aid, Name: name, DisplayCtime: dct}
+
 	return res, nil
 }
 
 func DeleteVideoInfo(vid string) error {
-	stmtDel, err := dbConn.Prepare("DELETE FROM video_info WHERE id = ?")
+	stmtDel, err := dbConn.Prepare("DELETE FROM video_info WHERE id=?")
 	if err != nil {
 		return err
 	}
@@ -166,11 +117,53 @@ func DeleteVideoInfo(vid string) error {
 	if err != nil {
 		return err
 	}
-	defer func(stmtDel *sql.Stmt) {
-		err := stmtDel.Close()
-		if err != nil {
-			return
-		}
-	}(stmtDel)
+
+	defer stmtDel.Close()
 	return nil
+}
+
+func AddNewComments(vid string, aid int, content string) error {
+	id, err := utils.NewUUID()
+	if err != nil {
+		return err
+	}
+
+	stmtIns, err := dbConn.Prepare("INSERT INTO comments (id, video_id, author_id, content) values (?, ?, ?, ?)")
+	if err != nil {
+		return err
+	}
+
+	_, err = stmtIns.Exec(id, vid, aid, content)
+	if err != nil {
+		return err
+	}
+
+	defer stmtIns.Close()
+	return nil
+}
+
+func ListComments(vid string, from, to int) ([]*defs.Comment, error) {
+	stmtOut, err := dbConn.Prepare(` SELECT comments.id, users.Login_name, comments.content FROM comments
+		INNER JOIN users ON comments.author_id = users.id
+		WHERE comments.video_id = ? AND comments.time > FROM_UNIXTIME(?) AND comments.time <= FROM_UNIXTIME(?)`)
+
+	var res []*defs.Comment
+
+	rows, err := stmtOut.Query(vid, from, to)
+	if err != nil {
+		return res, err
+	}
+
+	for rows.Next() {
+		var id, name, content string
+		if err := rows.Scan(&id, &name, &content); err != nil {
+			return res, err
+		}
+
+		c := &defs.Comment{Id: id, VideoId: vid, Author: name, Content: content}
+		res = append(res, c)
+	}
+	defer stmtOut.Close()
+
+	return res, nil
 }
