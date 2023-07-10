@@ -1,4 +1,4 @@
-module stmsrv
+module goStreaming-on-demand-services
 
 go 1.19
 
