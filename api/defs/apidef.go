@@ -20,3 +20,8 @@ type Comment struct {
 	Author  string
 	Content string
 }
+
+type SimpleSession struct {
+	Username string // 登录名
+	TTL      int64  // TTL 是 "Time To Live" 的缩写，表示 session 的存活时间。
+}
