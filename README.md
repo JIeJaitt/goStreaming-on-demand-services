@@ -1,5 +1,8 @@
 # StmSrv: streaming server
 
+> **Note**  
+> 本项目目前仅用于学习
+
 流媒体点播服务
 
 ![](image/Overall-architecture.png)
