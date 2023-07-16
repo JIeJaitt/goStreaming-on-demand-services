@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/julienschmidt/httprouter"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -9,6 +10,11 @@ import (
 	"os"
 	"time"
 )
+
+func testPageHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	t, _ := template.ParseFiles("../videos/upload.html")
+	t.Execute(w, nil)
+}
 
 func streamHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	// 从 URL 中获取 vid-id
