@@ -75,7 +75,7 @@ func TestVideoWorkFlow(t *testing.T) {
 }
 
 func testAddVideoInfo(t *testing.T) {
-	vi, err := AddNewVideo(1, "my-video")
+	vi, err := AddNewVideo(1, "my-videos")
 	if err != nil {
 		t.Errorf("Error of AddVideoInfo: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestComments(t *testing.T) {
 func testAddComments(t *testing.T) {
 	vid := "12345"
 	aid := 1
-	content := "I like this video"
+	content := "I like this videos"
 
 	err := AddNewComments(vid, aid, content)
 	if err != nil {
