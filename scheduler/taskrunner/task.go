@@ -10,6 +10,7 @@ import (
 
 // 删除物理文件
 func deleteVideo(vid string) error {
+	// 删除文件
 	err := os.Remove(VIDEO_PATH + vid)
 
 	// 当错误不是文件不存在错误时表示文件没有删除，将错误返回

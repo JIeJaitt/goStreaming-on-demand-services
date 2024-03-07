@@ -28,7 +28,9 @@ https://jiejaitt.blog.csdn.net/article/details/120277314
 
 这个就是我们的架构概览，整个大的框架有一个Timer来启动。然后我们的Timer里面有一个task runner ，task runner分为三部分，第一个是Dispatcher，然后第二个就是它的Excutor。实际上也就是我们之前所说的生产消费者Producer和Consumer。然后他们之间通过一个go的原生channel来通信。这样的话，Dispatcher会把他得到的任务内容通过channel发送给Excutor。Excutor就会去读它这些内容，然后去做一些操作。这个就是我们整个schedule我们需要做的什么，以及我们的架构是什么。
 
+### schedule服务的具体逻辑
 
+当用户api层发起删除视频的请求的时候，api服务通过调用调度器层的给视频延时删除表里面写入一条将要被彻底被删除视频的记录。然后启动Timer，然后Timer去读runner，然后runnner去读视频延时删除表里面的记录之后然后就执行，然后彻底删除记录
 
 
 
